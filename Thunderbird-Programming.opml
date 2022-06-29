@@ -1,11 +1,11 @@
 <opml version="1.0" xmlns:fz="urn:forumzilla:">
   <head>
     <title>Thunderbird - Экспорт Programming в OPML</title>
-    <dateCreated>Wed, 29 Jun 2022 11:28:31 GMT</dateCreated>
+    <dateCreated>Wed, 29 Jun 2022 12:38:13 GMT</dateCreated>
   </head>
   <body>
     <outline title="Andrew Lock  NET Escapades">
-      <outline type="rss" title="Andrew Lock | .NET Escapades" text="Andrew Lock | .NET Escapades" version="RSS" fz:quickMode="false" fz:options="{&quot;version&quot;:2,&quot;updates&quot;:{&quot;enabled&quot;:true,&quot;updateMinutes&quot;:100,&quot;updateUnits&quot;:&quot;min&quot;,&quot;lastUpdateTime&quot;:1656496088769,&quot;lastDownloadTime&quot;:1656415065705,&quot;updatePeriod&quot;:&quot;&quot;,&quot;updateFrequency&quot;:&quot;&quot;,&quot;updateBase&quot;:&quot;&quot;},&quot;category&quot;:{&quot;enabled&quot;:false,&quot;prefixEnabled&quot;:false,&quot;prefix&quot;:&quot;&quot;}}" xmlUrl="https://andrewlock.net/rss.xml" htmlUrl="https://andrewlock.net/"/></outline>
+      <outline type="rss" title="Andrew Lock | .NET Escapades" text="Andrew Lock | .NET Escapades" version="RSS" fz:quickMode="false" fz:options="{&quot;version&quot;:2,&quot;updates&quot;:{&quot;enabled&quot;:true,&quot;updateMinutes&quot;:100,&quot;updateUnits&quot;:&quot;min&quot;,&quot;lastUpdateTime&quot;:1656502148789,&quot;lastDownloadTime&quot;:1656415065705,&quot;updatePeriod&quot;:&quot;&quot;,&quot;updateFrequency&quot;:&quot;&quot;,&quot;updateBase&quot;:&quot;&quot;},&quot;category&quot;:{&quot;enabled&quot;:false,&quot;prefixEnabled&quot;:false,&quot;prefix&quot;:&quot;&quot;}}" xmlUrl="https://andrewlock.net/rss.xml" htmlUrl="https://andrewlock.net/"/></outline>
     <outline title="CodeOpinion">
       <outline type="rss" title="CodeOpinion" text="CodeOpinion" version="RSS" fz:quickMode="false" fz:options="{&quot;version&quot;:2,&quot;updates&quot;:{&quot;enabled&quot;:true,&quot;updateMinutes&quot;:100,&quot;updateUnits&quot;:&quot;min&quot;,&quot;lastUpdateTime&quot;:1656502069612,&quot;lastDownloadTime&quot;:1655936900055,&quot;updatePeriod&quot;:&quot;hourly&quot;,&quot;updateFrequency&quot;:&quot;1&quot;,&quot;updateBase&quot;:&quot;&quot;},&quot;category&quot;:{&quot;enabled&quot;:false,&quot;prefixEnabled&quot;:false,&quot;prefix&quot;:&quot;&quot;}}" xmlUrl="https://codeopinion.com/feed/" htmlUrl="https://codeopinion.com"/></outline>
     <outline title="Enterprise Craftsmanship">
