@@ -1,3 +1,5 @@
 # Все мои RSS фиды
 
-Сервис валидации - https://www.twilio.com/blog
+## Полезные ссылки
+
+* [Сервис валидации RSS фидов](https://validator.w3.org/feed/)
