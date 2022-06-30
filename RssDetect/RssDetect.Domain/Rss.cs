@@ -26,9 +26,9 @@ public class Rss
         };
     }
 
-    public async IAsyncEnumerable<RssLink> DetectAsync(Uri rootUri, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public ICollection<RssLink> Detect(Uri rootUri)
     {
-        var excludeUrl = new ConcurrentSet<RssLink>();
+        var result = new ConcurrentSet<RssLink>();
         
         var checkUri = rootUri.DescendantUri().ToList();
         
@@ -36,11 +36,8 @@ public class Rss
 
         try
         {
-            foreach (var link in checkUri)
-            {
-                await foreach (var p in DetectCoreAsync(link, excludeUrl, cancellationToken)) 
-                    yield return p;
-            }
+            Parallel.ForEach(checkUri, link => DetectCore(link, result));
+            return result;
         }
         finally
         {
@@ -48,33 +45,37 @@ public class Rss
         }
     }
 
-    private async IAsyncEnumerable<RssLink> DetectCoreAsync(Uri rootLink, ConcurrentSet<RssLink> excludeUrl, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private void DetectCore(Uri rootLink, ConcurrentSet<RssLink> resultSet)
     {
-        await foreach (var rssLink in HeadRssLinks(rootLink, excludeUrl, cancellationToken))
-            yield return rssLink;
-
-        _progress?.Report(new IncreaseDetectProgress());
-
-        foreach (var typicalRss in _configuration.RssPath)
+        Parallel.Invoke(() =>
         {
-            var createdLink = await TypicalRssLink(rootLink, excludeUrl, typicalRss, cancellationToken);
-            if (createdLink.HasValue)
-                yield return createdLink.Value;
+            foreach (var rssLink in HeadRssLinks(rootLink))
+                resultSet.Add(rssLink);
 
             _progress?.Report(new IncreaseDetectProgress());
-        }
+        },
+        () =>
+        {
+            Parallel.ForEach(_configuration.RssPath, typicalRss =>
+            {
+                var createdLink = TypicalRssLink(rootLink, typicalRss, resultSet);
+                if (createdLink.HasValue)
+                    resultSet.Add(createdLink.Value);
+
+                _progress?.Report(new IncreaseDetectProgress());
+            });
+        });
     }
 
-    private async Task<RssLink?> TypicalRssLink(Uri link, ConcurrentSet<RssLink> excludeUrl, string typicalRss, 
-        CancellationToken cancellationToken)
+    private RssLink? TypicalRssLink(Uri link, string typicalRss, ConcurrentSet<RssLink> resultSet)
     {
         try
         {
             var uri = new Uri(link, typicalRss);
-            if (excludeUrl.Contains(new RssLink(uri)))
+            if (resultSet.Contains(new RssLink(uri)))
                 return null;
             
-            var result = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri), cancellationToken);
+            var result = _client.Send(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri));
             
             if (result.IsSuccessStatusCode)
                 return new RssLink(uri);
@@ -87,25 +88,21 @@ public class Rss
         return null;
     }
 
-    private static async IAsyncEnumerable<RssLink> HeadRssLinks(Uri rootLink, ConcurrentSet<RssLink> excludeUrl, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private static IEnumerable<RssLink> HeadRssLinks(Uri rootLink)
     {
-        var web = new HtmlWeb();
-        var doc = await web.LoadFromWebAsync(rootLink, Encoding.UTF8, null, cancellationToken);
+        var doc = new HtmlWeb().Load(rootLink);
 
         if (doc == null)
-            yield break;
+            return Enumerable.Empty<RssLink>();
 
         var nodes = doc.DocumentNode.SelectNodes("/html/head/link");
 
         if (nodes == null)
-            yield break;
+            return Enumerable.Empty<RssLink>();
 
-        var rssLinks = nodes.Where(v => v.IsRssHtmlLink()).Select(n => RssLink.Create(rootLink, n));
-
-        foreach (var rssLink in rssLinks)
-        {
-            if (rssLink != null && excludeUrl.Add(rssLink.Value))
-                yield return rssLink.Value;
-        }
+        return nodes.Where(v => v.IsRssHtmlLink())
+            .Select(n => RssLink.Create(rootLink, n))
+            .Where(v => v.HasValue)
+            .Select(v => v!.Value);
     }
 }

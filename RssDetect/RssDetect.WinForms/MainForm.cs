@@ -63,7 +63,7 @@ namespace RssDetect.WinForms
             return (uri, string.Empty);
         }
 
-        private async void btnDetect_Click(object sender, EventArgs e)
+        private void btnDetect_Click(object sender, EventArgs e)
         {
             var (uri, errorMessage) = GetUriFromLink();
             if (uri == null || !string.IsNullOrEmpty(errorMessage))
@@ -75,7 +75,7 @@ namespace RssDetect.WinForms
             using var cursor = new WaitCursor(btnDetect, txtLink);
             lstDetectResult.Items.Clear();
 
-            await foreach (var rssLink in _rss.DetectAsync(uri))
+            foreach (var rssLink in _rss.Detect(uri))
                 lstDetectResult.Items.Add(rssLink.Link);
         }
 
