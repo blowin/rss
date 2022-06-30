@@ -19,7 +19,10 @@ public class Rss
         "feed",
     };
 
-    private readonly HttpClient _client = new HttpClient();
+    private readonly HttpClient _client = new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(2)
+    };
     private readonly IProgress<DetectProgress>? _progress;
 
     public Rss(IProgress<DetectProgress>? progress)
