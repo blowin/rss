@@ -1,32 +1,49 @@
+using System.Reflection;
 using RssDetect.Domain;
 
 namespace RssDetect.WinForms
 {
     public partial class MainForm : Form
     {
-        private Rss _rss = new Rss();
+        private readonly Rss _rss;
+        private readonly AppMessageBox _appMessageBox;
 
-        public MainForm()
+        public MainForm(AppMessageBox appMessageBox)
         {
+            _appMessageBox = appMessageBox;
             InitializeComponent();
+
+            var progress = new Progress<DetectProgress>(OnProgress);
+            _rss = new Rss(progress);
+
+            var version = typeof(MainForm).Assembly.GetName()?.Version?.ToString();
+            if(!string.IsNullOrEmpty(version))
+                Text += " - " + version;
         }
 
-        private void ShowError(string message)
+        private void OnProgress(DetectProgress obj)
         {
-            MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            obj.Match(progress =>
+                {
+                    progressBar.Value = 0;
+                    progressBar.Maximum = progress.MaxOperation;
+                    progressBar.Step = 1;
+                },
+                progress => progressBar.Value = Math.Min(progressBar.Value + 1, progressBar.Maximum),
+                progress => progressBar.Value = 0);
         }
 
         private async void btnDetect_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrEmpty(txtLink.Text))
             {
-                ShowError("Specify url");
+                _appMessageBox.ShowError("Specify url");
                 return;
             }
 
             if (!Uri.TryCreate(txtLink.Text, UriKind.Absolute, out var uri))
             {
-                ShowError("Invalid Uri");
+                _appMessageBox.ShowError("Invalid Uri");
                 return;
             }
 

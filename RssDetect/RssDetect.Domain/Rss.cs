@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using HtmlAgilityPack;
 
 namespace RssDetect.Domain;
@@ -19,82 +20,88 @@ public class Rss
     };
 
     private readonly HttpClient _client = new HttpClient();
-    
+    private readonly IProgress<DetectProgress>? _progress;
+
+    public Rss(IProgress<DetectProgress>? progress)
+    {
+        _progress = progress;
+    }
+
     public async IAsyncEnumerable<RssLink> DetectAsync(Uri rootUri, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var excludeUrl = new HashSet<RssLink>();
 
-        foreach (var link in CheckLinks(rootUri))
+        var checkUri = rootUri.DescendantUri().ToList();
+        
+        _progress?.Report(new StartDetectProgress(checkUri.Count * TypicalRssPath.Length));
+        
+        foreach (var link in checkUri)
         {
-            var web = new HtmlWeb();
-            var doc = await web.LoadFromWebAsync(link, Encoding.UTF8, null, cancellationToken);
+            await foreach (var p in DetectCoreAsync(link, excludeUrl, cancellationToken)) 
+                yield return p;
+        }
 
-            if (doc == null) 
-                yield break;
+        _progress?.Report(new FinishDetectProgress());
+    }
+
+    private async IAsyncEnumerable<RssLink> DetectCoreAsync(Uri rootLink, HashSet<RssLink> excludeUrl, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var rssLink in HeadRssLinks(rootLink, excludeUrl, cancellationToken))
+            yield return rssLink;
+
+        _progress?.Report(new IncreaseDetectProgress());
+
+        foreach (var typicalRss in TypicalRssPath)
+        {
+            var createdLink = await TypicalRssLink(rootLink, excludeUrl, typicalRss, cancellationToken);
+            if (createdLink.HasValue)
+                yield return createdLink.Value;
+
+            _progress?.Report(new IncreaseDetectProgress());
+        }
+    }
+
+    private async Task<RssLink?> TypicalRssLink(Uri link, HashSet<RssLink> excludeUrl, string typicalRss, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var uri = new Uri(link, typicalRss);
+            if (excludeUrl.Contains(new RssLink(uri)))
+                return null;
+
+            var result = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri), cancellationToken);
             
-            var rssLinks = doc.DocumentNode.SelectNodes("/html/head/link")
-                .Where(RssHtmlLink)
-                .Select(n => RssLink.Create(link, n));
-
-            foreach (var rssLink in rssLinks)
-            {
-                if (rssLink != null && excludeUrl.Add(rssLink.Value))
-                    yield return rssLink.Value;
-            }
-        
-            foreach (var rssLink in TypicalRssPath)
-            {
-                RssLink? createdLink = null;
-                try
-                {
-                    var uri = new Uri(link, rssLink);
-                    if(excludeUrl.Contains(new RssLink(uri)))
-                        continue;
-
-                    var result = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri), cancellationToken);
-                    if (result.IsSuccessStatusCode)
-                        createdLink = new RssLink(uri);
-                }
-                catch
-                {
-                    // ignored
-                }
-
-                if (createdLink.HasValue)
-                    yield return createdLink.Value;
-            }
+            if (result.IsSuccessStatusCode)
+                return new RssLink(uri);
         }
-    }
-
-    private static IEnumerable<Uri> CheckLinks(Uri link)
-    {
-        yield return link;
-
-        var initUri = link.AbsoluteUri ?? string.Empty;
-        for (var i = link.Segments.Length - 1; i >= 1; i--)
+        catch
         {
-            var segment = link.Segments[i];
-            initUri = initUri.Substring(0, initUri.Length - segment.Length);
-            Uri? uri = null;
-            try
-            {
-                uri = new Uri(initUri);
-            }
-            catch
-            {
-                // ignore
-            }
-
-            if (uri != null)
-                yield return uri;
+            // ignored
         }
-        
+
+        return null;
     }
 
-    private static bool RssHtmlLink(HtmlNode n)
+    private static async IAsyncEnumerable<RssLink> HeadRssLinks(Uri rootLink, HashSet<RssLink> excludeUrl, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        return n.Attributes != null && 
-               n.Attributes.Any(atr => atr.Name == "type" && atr.Value != null && atr.Value.StartsWith("application/rss")) &&
-               n.Attributes.Contains("href");
+        var web = new HtmlWeb();
+        var doc = await web.LoadFromWebAsync(rootLink, Encoding.UTF8, null, cancellationToken);
+
+        if (doc == null)
+            yield break;
+
+        var nodes = doc.DocumentNode.SelectNodes("/html/head/link");
+
+        if (nodes == null)
+            yield break;
+
+        var rssLinks = nodes.Where(v => v.IsRssHtmlLink()).Select(n => RssLink.Create(rootLink, n));
+
+        foreach (var rssLink in rssLinks)
+        {
+            if (rssLink != null && excludeUrl.Add(rssLink.Value))
+                yield return rssLink.Value;
+        }
     }
 }
