@@ -1,4 +1,4 @@
-﻿namespace RssDetect.Domain;
+﻿namespace RssDetect.Domain.Extensions;
 
 public static class UriExt
 {
@@ -44,6 +44,6 @@ public static class UriExt
             if (uri != null)
                 yield return uri;
         }
-        
+
     }
 }
