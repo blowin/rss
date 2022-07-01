@@ -1,3 +1,8 @@
+using System.Configuration;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Security.Authentication;
+
 namespace RssDetect.WinForms;
 
 internal static class Program
@@ -6,13 +11,12 @@ internal static class Program
     ///  The main entry point for the application.
     /// </summary>
     [STAThread]
-    static void Main()
+    private static void Main()
     {
         var appMessageBox = new AppMessageBox();
-
-        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
+        Application.ThreadException += (sender, args) =>
         {
-            var ex = args.ExceptionObject?.ToString() ?? "Unhandled exception";
+            var ex = Trim(args.Exception?.ToString(), 2048) ?? "Unhandled exception";
             appMessageBox.ShowError(ex.ToString());
         };
 
@@ -20,5 +24,13 @@ internal static class Program
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
         Application.Run(new MainForm(appMessageBox));
+    }
+
+    private static string Trim(string? value, int maxLen)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Length > maxLen ? value[..maxLen] : value;
     }
 }

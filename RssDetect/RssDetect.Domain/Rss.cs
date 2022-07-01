@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Net;
+using System.Runtime.CompilerServices;
 using System.Text;
 using HtmlAgilityPack;
 using RssDetect.Domain.Core;
@@ -10,6 +11,7 @@ public class Rss
 {
     private readonly RssConfiguration _configuration;
     private readonly HttpClient _client;
+    private readonly HtmlWeb _htmlWeb;
     private readonly IProgress<DetectProgress>? _progress;
 
     public Rss(IProgress<DetectProgress>? progress, RssConfiguration configuration)
@@ -23,6 +25,11 @@ public class Rss
             {
                 { "User-Agent", configuration.UserAgent }
             }
+        };
+
+        _htmlWeb = new HtmlWeb
+        {
+            UserAgent = configuration.UserAgent,
         };
     }
 
@@ -88,9 +95,9 @@ public class Rss
         return null;
     }
 
-    private static IEnumerable<RssLink> HeadRssLinks(Uri rootLink)
+    private IEnumerable<RssLink> HeadRssLinks(Uri rootLink)
     {
-        var doc = new HtmlWeb().Load(rootLink);
+        var doc = _htmlWeb.Load(rootLink);
 
         if (doc == null)
             return Enumerable.Empty<RssLink>();
