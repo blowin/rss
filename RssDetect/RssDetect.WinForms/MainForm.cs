@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using RssDetect.Domain;
 
@@ -13,7 +14,7 @@ namespace RssDetect.WinForms
         public MainForm(AppMessageBox appMessageBox)
         {
             InitializeComponent();
-
+ 
             _appMessageBox = appMessageBox;
             progressBar.Step = 1;
 
@@ -47,7 +48,7 @@ namespace RssDetect.WinForms
         {
             progress.Match(
                 start => progressBar.Maximum = start.MaxOperation,
-                increase => progressBar.Value = Math.Min(progressBar.Value + 1, progressBar.Maximum),
+                increase => progressBar.Value += 1,
                 finish => progressBar.Value = 0
             );
         }
@@ -63,7 +64,7 @@ namespace RssDetect.WinForms
             return (uri, string.Empty);
         }
 
-        private void btnDetect_Click(object sender, EventArgs e)
+        private async void btnDetect_Click(object sender, EventArgs e)
         {
             var (uri, errorMessage) = GetUriFromLink();
             if (uri == null || !string.IsNullOrEmpty(errorMessage))
@@ -75,7 +76,8 @@ namespace RssDetect.WinForms
             using var cursor = new WaitCursor(btnDetect, txtLink);
             lstDetectResult.Items.Clear();
 
-            foreach (var rssLink in _rss.Detect(uri))
+            var links = await _rss.DetectAsync(uri);
+            foreach (var rssLink in links)
                 lstDetectResult.Items.Add(rssLink.Link);
         }
 

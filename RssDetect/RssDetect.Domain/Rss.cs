@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using HtmlAgilityPack;
 using RssDetect.Domain.Core;
 using RssDetect.Domain.Extensions;
@@ -9,6 +10,8 @@ namespace RssDetect.Domain;
 
 public class Rss
 {
+    private const int HeadEventCount = 1;
+
     private readonly RssConfiguration _configuration;
     private readonly HttpClient _client;
     private readonly HtmlWeb _htmlWeb;
@@ -33,48 +36,55 @@ public class Rss
         };
     }
 
-    public ICollection<RssLink> Detect(Uri rootUri)
+    public async Task<ICollection<RssLink>> DetectAsync(Uri rootUri, CancellationToken cancellationToken = default)
     {
         var result = new ConcurrentSet<RssLink>();
         
         var checkUri = rootUri.DescendantUri().ToList();
-        
-        _progress?.Report(new StartDetectProgress(checkUri.Count * _configuration.RssPath.Length + 1));
+
+        var totalEventReports = checkUri.Count * (_configuration.RssPath.Length + HeadEventCount);
+        _progress?.Report(new StartDetectProgress(totalEventReports));
 
         try
         {
-            Parallel.ForEach(checkUri, link => DetectCore(link, result));
+            await Parallel.ForEachAsync(checkUri, cancellationToken, async (link, token) => await DetectAsyncCore(link, result, token));
             return result;
         }
         finally
         {
-            _progress?.Report(new FinishDetectProgress());   
+            _progress?.Report(FinishDetectProgress.Instance);   
         }
     }
 
-    private void DetectCore(Uri rootLink, ConcurrentSet<RssLink> resultSet)
+    private Task DetectAsyncCore(Uri rootLink, ConcurrentSet<RssLink> resultSet, CancellationToken cancellationToken)
     {
-        Parallel.Invoke(() =>
-        {
-            foreach (var rssLink in HeadRssLinks(rootLink))
-                resultSet.Add(rssLink);
+        var rssPathTask = HandleRssPath(rootLink, resultSet, cancellationToken);
+        var headRssLinkTask = HandleHeadRssLinks(rootLink, resultSet, cancellationToken);
+        return Task.WhenAll(rssPathTask, headRssLinkTask);
+    }
 
-            _progress?.Report(new IncreaseDetectProgress());
-        },
-        () =>
+    private Task HandleRssPath(Uri rootLink, ConcurrentSet<RssLink> resultSet, CancellationToken cancellationToken)
+    {
+        return Parallel.ForEachAsync(_configuration.RssPath, cancellationToken, async (typicalRss, token) =>
         {
-            Parallel.ForEach(_configuration.RssPath, typicalRss =>
-            {
-                var createdLink = TypicalRssLink(rootLink, typicalRss, resultSet);
-                if (createdLink.HasValue)
-                    resultSet.Add(createdLink.Value);
+            var createdLink = await TypicalRssLink(rootLink, typicalRss, resultSet, token);
+            if (createdLink.HasValue)
+                resultSet.Add(createdLink.Value);
 
-                _progress?.Report(new IncreaseDetectProgress());
-            });
+            _progress?.Report(IncreaseDetectProgress.Instance);
         });
     }
 
-    private RssLink? TypicalRssLink(Uri link, string typicalRss, ConcurrentSet<RssLink> resultSet)
+    private async Task HandleHeadRssLinks(Uri rootLink, ConcurrentSet<RssLink> resultSet, CancellationToken cancellationToken)
+    {
+        var headRssLinks = await HeadRssLinks(rootLink, cancellationToken);
+        foreach (var rssLink in headRssLinks)
+            resultSet.Add(rssLink);
+
+        _progress?.Report(IncreaseDetectProgress.Instance);
+    }
+
+    private async Task<RssLink?> TypicalRssLink(Uri link, string typicalRss, ConcurrentSet<RssLink> resultSet, CancellationToken token)
     {
         try
         {
@@ -82,7 +92,7 @@ public class Rss
             if (resultSet.Contains(new RssLink(uri)))
                 return null;
             
-            var result = _client.Send(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri));
+            var result = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri), token);
             
             if (result.IsSuccessStatusCode)
                 return new RssLink(uri);
@@ -95,9 +105,9 @@ public class Rss
         return null;
     }
 
-    private IEnumerable<RssLink> HeadRssLinks(Uri rootLink)
+    private async Task<IEnumerable<RssLink>> HeadRssLinks(Uri rootLink, CancellationToken token)
     {
-        var doc = _htmlWeb.Load(rootLink);
+        var doc = await _htmlWeb.LoadFromWebAsync(rootLink, Encoding.UTF8, (NetworkCredential)null, token);
 
         if (doc == null)
             return Enumerable.Empty<RssLink>();
