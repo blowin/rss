@@ -2,6 +2,8 @@ using System.Configuration;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
+using Serilog;
+using Serilog.Events;
 
 namespace RssDetect.WinForms;
 
@@ -13,24 +15,23 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        if (!Directory.Exists("logs"))
+            Directory.CreateDirectory("logs");
+
+        using var log = new LoggerConfiguration()
+            .WriteTo.File("logs/log.txt", LogEventLevel.Warning, rollingInterval: RollingInterval.Day)
+            .CreateLogger();
+
         var appMessageBox = new AppMessageBox();
         Application.ThreadException += (sender, args) =>
         {
-            var ex = Trim(args.Exception?.ToString(), 2048) ?? "Unhandled exception";
-            appMessageBox.ShowError(ex.ToString());
+            log.Error(args.Exception, "ThreadException {Sender}", sender?.GetType().Name);
+            appMessageBox.ShowError("Unhandled exception");
         };
 
         // To customize application configuration such as set high DPI settings or default font,
         // see https://aka.ms/applicationconfiguration.
         ApplicationConfiguration.Initialize();
-        Application.Run(new MainForm(appMessageBox));
-    }
-
-    private static string Trim(string? value, int maxLen)
-    {
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-
-        return value.Length > maxLen ? value[..maxLen] : value;
+        Application.Run(new MainForm(appMessageBox, log));
     }
 }

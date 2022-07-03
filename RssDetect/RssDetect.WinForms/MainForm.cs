@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using RssDetect.Domain;
+using Serilog.Core;
 
 namespace RssDetect.WinForms
 {
@@ -11,22 +12,22 @@ namespace RssDetect.WinForms
         private readonly Rss _rss;
         private readonly AppMessageBox _appMessageBox;
 
-        public MainForm(AppMessageBox appMessageBox)
+        public MainForm(AppMessageBox appMessageBox, Logger logger)
         {
             InitializeComponent();
  
             _appMessageBox = appMessageBox;
             progressBar.Step = 1;
 
-            _rss = CreateRss();
+            _rss = CreateRss(logger);
             Text = BuildTitle(Text);
         }
 
-        private Rss CreateRss()
+        private Rss CreateRss(Logger logger)
         {
             var configuration = ReadRssConfiguration();
             var progress = new Progress<DetectProgress>(OnProgress);
-            return new Rss(progress, configuration);
+            return new Rss(progress, configuration, logger);
         }
 
         private static string BuildTitle(string currentTitle)

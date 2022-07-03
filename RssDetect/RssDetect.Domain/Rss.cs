@@ -5,6 +5,7 @@ using System.Threading;
 using HtmlAgilityPack;
 using RssDetect.Domain.Core;
 using RssDetect.Domain.Extensions;
+using Serilog.Core;
 
 namespace RssDetect.Domain;
 
@@ -16,11 +17,13 @@ public class Rss
     private readonly HttpClient _client;
     private readonly HtmlWeb _htmlWeb;
     private readonly IProgress<DetectProgress>? _progress;
+    private readonly Logger _logger;
 
-    public Rss(IProgress<DetectProgress>? progress, RssConfiguration configuration)
+    public Rss(IProgress<DetectProgress>? progress, RssConfiguration configuration, Logger logger)
     {
         _progress = progress;
         _configuration = configuration;
+        _logger = logger;
         _client = new HttpClient
         {
             Timeout = configuration.Timeout,
@@ -77,11 +80,19 @@ public class Rss
 
     private async Task HandleHeadRssLinks(Uri rootLink, ConcurrentSet<RssLink> resultSet, CancellationToken cancellationToken)
     {
-        var headRssLinks = await HeadRssLinks(rootLink, cancellationToken);
-        foreach (var rssLink in headRssLinks)
-            resultSet.Add(rssLink);
+        try
+        {
+            var headRssLinks = await HeadRssLinks(rootLink, cancellationToken);
+            foreach (var rssLink in headRssLinks)
+                resultSet.Add(rssLink);
 
-        _progress?.Report(IncreaseDetectProgress.Instance);
+            _progress?.Report(IncreaseDetectProgress.Instance);
+        }
+        catch (Exception e)
+        {
+            _logger.Error(e, "HandleHeadRssLinks(\"{Uri}\")", rootLink.AbsoluteUri);
+            throw;
+        }
     }
 
     private async Task<RssLink?> TypicalRssLink(Uri link, string typicalRss, ConcurrentSet<RssLink> resultSet, CancellationToken token)
@@ -91,15 +102,19 @@ public class Rss
             var uri = new Uri(link, typicalRss);
             if (resultSet.Contains(new RssLink(uri)))
                 return null;
-            
+
             var result = await _client.SendAsync(new HttpRequestMessage(HttpMethod.Get, uri.AbsoluteUri), token);
-            
+
             if (result.IsSuccessStatusCode)
                 return new RssLink(uri);
         }
-        catch
+        catch (TaskCanceledException)
         {
-            // ignored
+            // ignore
+        }
+        catch(Exception e)
+        {
+            _logger.Error(e, "TypicalRssLink(\"{Uri}\", \"{typicalRss}\")", link.AbsoluteUri, typicalRss);
         }
 
         return null;
