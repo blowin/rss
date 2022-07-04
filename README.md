@@ -1,8 +1,12 @@
-# Все мои RSS фиды
+# All my RSS feeds
 
-## Полезные ссылки
+## Useful Links
 
-* [Сервис валидации RSS фидов](https://validator.w3.org/feed/)
+* [RSS feed validation service](https://validator.w3.org/feed/)
+
+## RSS Link Search Apps
+
+[.NET version is required](https://dotnet.microsoft.com/en-us/download/dotnet/6.0)
 
 ## Win App
 
