@@ -2,6 +2,7 @@ using System.Configuration;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
+using RssDetect.Domain;
 using Serilog;
 using Serilog.Events;
 
@@ -15,12 +16,7 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
-        if (!Directory.Exists("logs"))
-            Directory.CreateDirectory("logs");
-
-        using var log = new LoggerConfiguration()
-            .WriteTo.File("logs/log.txt", LogEventLevel.Warning, rollingInterval: RollingInterval.Day)
-            .CreateLogger();
+        using var log = new LoggerFactory().Create();
 
         var appMessageBox = new AppMessageBox();
         Application.ThreadException += (sender, args) =>

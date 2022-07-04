@@ -17,9 +17,9 @@ public class Rss
     private readonly HttpClient _client;
     private readonly HtmlWeb _htmlWeb;
     private readonly IProgress<DetectProgress>? _progress;
-    private readonly Logger _logger;
+    private readonly Logger? _logger;
 
-    public Rss(IProgress<DetectProgress>? progress, RssConfiguration configuration, Logger logger)
+    public Rss(IProgress<DetectProgress>? progress, RssConfiguration configuration, Logger? logger)
     {
         _progress = progress;
         _configuration = configuration;
@@ -90,7 +90,7 @@ public class Rss
         }
         catch (Exception e)
         {
-            _logger.Error(e, "HandleHeadRssLinks(\"{Uri}\")", rootLink.AbsoluteUri);
+            _logger?.Error(e, "HandleHeadRssLinks(\"{Uri}\")", rootLink.AbsoluteUri);
             throw;
         }
     }
@@ -114,7 +114,7 @@ public class Rss
         }
         catch(Exception e)
         {
-            _logger.Error(e, "TypicalRssLink(\"{Uri}\", \"{typicalRss}\")", link.AbsoluteUri, typicalRss);
+            _logger?.Error(e, "TypicalRssLink(\"{Uri}\", \"{typicalRss}\")", link.AbsoluteUri, typicalRss);
         }
 
         return null;
